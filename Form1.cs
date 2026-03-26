@@ -1,82 +1,107 @@
-﻿using System;
-using System.IO;
+﻿using Microsoft.Web.WebView2.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using Microsoft.Web.WebView2.Core;
-using Microsoft.Web.WebView2.WinForms;
-
+using tarea2_de_navegador;
 
 namespace archivos_de_texto
 {
     public partial class Form1 : Form
     {
-        string archivoHistorial = "historial.txt";
+        private Historial historial;
+        private List<Direccion> direcciones;
 
         public Form1()
         {
             InitializeComponent();
+            historial = new Historial("historial.json");
+            direcciones = new List<Direccion>();
         }
-        private async void InicializarWebView()
+
+        private async void Form1_Load_1(object sender, EventArgs e)
         {
             await webView21.EnsureCoreWebView2Async(null);
+            CargarHistorialEnComboBox();
         }
 
-        // Función para guardar en el archivo
-        private void Guardar(string nombreArchivo, string texto)
+        private void CargarHistorialEnComboBox()
         {
-            FileStream stream = new FileStream(nombreArchivo, FileMode.Append, FileAccess.Write);
-            StreamWriter writer = new StreamWriter(stream);
-            writer.WriteLine(texto);
-            writer.Close();
+            direcciones = historial.LeerHistorial();
+
+            comboBox1.Items.Clear();
+
+            foreach (var direccion in direcciones)
+            {
+                comboBox1.Items.Add(direccion.Url);
+            }
         }
-        
-        // Botón navegar
+
         private void button1_Click_1(object sender, EventArgs e)
         {
-            string url = comboBox1.Text;
+            string url = comboBox1.Text.Trim();
 
-            // Asegurar que tenga http
-            if (!url.StartsWith("http"))
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Ingrese una dirección válida.");
+                return;
+            }
+
+            if (!url.StartsWith("http://") && !url.StartsWith("https://"))
             {
                 url = "https://" + url;
             }
 
-            webView21.CoreWebView2.Navigate(url);
+            if (webView21 != null && webView21.CoreWebView2 != null)
+            {
+                webView21.CoreWebView2.Navigate(url);
 
-            // Guardar en historial
-            Guardar(archivoHistorial, url);
+                historial.AgregarDireccion(url);
+                CargarHistorialEnComboBox();
+                comboBox1.Text = url;
+            }
         }
 
-        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        private void buttonEliminar_Click(object sender, EventArgs e)
         {
+            string url = comboBox1.Text.Trim();
 
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Seleccione o escriba la URL que desea eliminar.");
+                return;
+            }
+
+            historial.EliminarDireccion(url);
+            CargarHistorialEnComboBox();
         }
 
-        // Evento Load del formulario
-        private async void Form1_Load_1(object sender, EventArgs e)
+        private void buttonOrdenarUrl_Click(object sender, EventArgs e)
         {
-            await webView21.EnsureCoreWebView2Async(null);
-
-            if (File.Exists(archivoHistorial))
-             {
-                FileStream stream = new FileStream(archivoHistorial, FileMode.Open, FileAccess.Read);
-                StreamReader reader = new StreamReader(stream);
-
-                 comboBox1.Items.Clear();
-
-                    while (reader.Peek() > -1)
-                    {
-                    string linea = reader.ReadLine();
-                    comboBox1.Items.Add(linea);
-                    }
-
-        reader.Close();
-    }
+            direcciones = historial.OrdenarPorUrl();
+            MostrarDireccionesEnComboBox(direcciones);
         }
 
-        private void webView21_Click(object sender, EventArgs e)
+        private void buttonOrdenarVeces_Click(object sender, EventArgs e)
         {
+            direcciones = historial.OrdenarPorVeces();
+            MostrarDireccionesEnComboBox(direcciones);
+        }
 
+        private void buttonOrdenarFecha_Click(object sender, EventArgs e)
+        {
+            direcciones = historial.OrdenarPorFecha();
+            MostrarDireccionesEnComboBox(direcciones);
+        }
+
+        private void MostrarDireccionesEnComboBox(List<Direccion> lista)
+        {
+            comboBox1.Items.Clear();
+
+            foreach (var direccion in lista)
+            {
+                comboBox1.Items.Add(direccion.Url);
+            }
         }
     }
 }
